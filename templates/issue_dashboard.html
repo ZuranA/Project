@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Reply to Comment</title>
+</head>
+<body>
+  <h1>Reply to Comment</h1>
+  <hr>
+  <form method="post" action="{{ url_for('reply_comment', project_id=project_id, issue_id=issue_id, comment_id=parent_comment.id) }}">
+    {{ form.csrf_token }}
+    <div class="form-group">
+      {{ form.description.label }}<br>
+      {{ form.description(class="form-control") }}
+      {% for error in form.description.errors %}
+        <span class="text-danger">{{ error }}</span>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+  </form>
+</body>
+</html>
