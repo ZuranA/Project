@@ -1,0 +1,23 @@
+<!-- Dashboard page -->
+<div class="container">
+  <h2>Projects</h2>
+  <p>Here are all the projects you are a member of:</p>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for project in projects %}
+        <tr>
+          <td><a href="{{ url_for('project_issues', project_id=project.id) }}">{{ project.name }}</a></td>
+          <td>{{ project.description }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p><a href="/create_project">Create new project</a></p>
+  <p><a href="/logout">Log out</a></p>
+</div>
