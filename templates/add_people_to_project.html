@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Add People to Project</title>
+    </head>
+    <body>
+        <h1>Add People to Project</h1>
+        <form action="" method="post">
+            {{ form.hidden_tag() }}
+            <div>
+                {{ form.email.label }} {{ form.email(size=32) }}
+                {% for error in form.email.errors %}
+                    <p style="color: red;">[{{ error }}]</p>
+                {% endfor %}
+            </div>
+            <div>{{ form.submit() }}</div>
+        </form>
+    </body>
+</html>
