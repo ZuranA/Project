@@ -1,0 +1,30 @@
+<h1>Edit Issue</h1>
+<hr>
+<form method="post">
+  {{ form.hidden_tag() }}
+  <div class="form-group">
+    {{ form.title.label }}
+    {{ form.title(class="form-control") }}
+  </div>
+  <div class="form-group">
+    {{ form.description.label }}
+    {{ form.description(class="form-control") }}
+  </div>
+  <div class="form-group">
+    {{ form.urgency.label }}
+    {{ form.urgency(class="form-control") }}
+  </div>
+  <div class="form-group">
+    {{ form.assigned_to.label }}
+    {{ form.assigned_to(class="form-control") }}
+  </div>
+  <div class="form-group">
+    {{ form.unassign.label }}
+    {{ form.unassign(class="form-control") }}
+  </div>
+  <div class="form-check">
+    {{ form.resolved(class="form-check-input") }}
+    {{ form.resolved.label(class="form-check-label") }}
+  </div>
+  {{ form.submit(class="btn btn-primary") }}
+</form>
