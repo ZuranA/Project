@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>New Issue</title>
+    </head>
+    <body>
+        <h1>New Issue</h1>
+        <form action="" method="post">
+            {{ form.hidden_tag() }}
+            <div>
+                {{ form.title.label }} {{ form.title(size=32) }}
+                {% for error in form.title.errors %}
+                    <p style="color: red;">[{{ error }}]</p>
+                {% endfor %}
+            </div>
+            <div>
+                {{ form.description.label }} {{ form.description() }}
+                {% for error in form.description.errors %}
+                    <p style="color: red;">[{{ error }}]</p>
+                {% endfor %}
+            </div>
+            <div>
+                {{ form.urgency.label }} {{ form.urgency() }}
+                {% for error in form.urgency.errors %}
+                    <p style="color: red;">[{{ error }}]</p>
+                {% endfor %}
+            </div>
+            <div>
+                {{ form.assigned_to.label }}
+                <ul>
+                    {% for subfield in form.assigned_to %}
+                        <li>{{ subfield }} {{ subfield.label.text }}</li>
+                    {% endfor %}
+                </ul>
+                {% for error in form.assigned_to.errors %}
+                    <p style="color: red;">[{{ error }}]</p>
+                {% endfor %}
+            </div>
+            <div>
+                {{ form.resolved.label }} {{ form.resolved() }}
+                {% for error in form.resolved.errors %}
+                    <p style="color: red;">[{{ error }}]</p>
+                {% endfor %}
+            </div>
+            <div>{{ form.submit() }}</div>
+        </form>
+    </body>
+</html>
