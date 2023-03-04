@@ -23,13 +23,13 @@ Comment: represents a comment made by a user on an issue
 ![image](https://user-images.githubusercontent.com/81491503/222871126-03666d54-7b82-40ee-b715-250d7fffbdd9.png)
 
 
-### Demo:
+### Demo and Pictures:
 A demo of basic operations:
 
 https://youtu.be/q__p4CVBifE
 
 
-Getting Started
+### Getting Started
 To run the application locally, follow these steps:
 
 1. Clone the repository: git clone https://github.com/username/issue-tracker.git
