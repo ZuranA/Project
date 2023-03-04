@@ -18,6 +18,16 @@
       {% endfor %}
     </tbody>
   </table>
+  <h2>To Do</h2>
+  {% if todo_issues %}
+    <ul>
+      {% for issue in todo_issues %}
+        <li><a href="{{ url_for('issue_dashboard', project_id=issue.project_id, issue_id=issue.id) }}">{{ issue.title }}</a></li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>You have no assigned, unresolved issues.</p>
+  {% endif %}
   <p><a href="/create_project">Create new project</a></p>
   <p><a href="/logout">Log out</a></p>
 </div>
