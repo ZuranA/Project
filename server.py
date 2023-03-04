@@ -97,7 +97,6 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session:
-            print('User is not logged in.')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated_function
@@ -135,7 +134,6 @@ def login():
             return 'Email or password is incorrect.'
 
         session['user_id'] = user.id
-        print("User logged in with ID:", user.id) 
 
         return redirect("/dashboard")
 
@@ -145,21 +143,16 @@ def login():
 @login_required
 def dashboard():
     user_id = session.get("user_id")
-    print(user_id)
     user = User.query.get(user_id)
     projects = []
     for project_member in user.projects:
         projects.append(project_member.project)
-
-    print("Projects:", projects)
 
     todo_issues = []
     for project in projects:
         for issue in project.issues:
             if issue.resolved == False and session['user_id'] in [u.user.id for u in issue.assigned_to]:
                 todo_issues.append(issue)
-
-    print("Todo Issues:", todo_issues)
 
     if request.method == 'POST':
         project_id = request.form.get('project_id')
@@ -219,7 +212,6 @@ def new_issue(project_id):
 
         db.session.add(issue)
         db.session.commit()
-        print("issue.assigned_to:", issue.assigned_to)
 
         return redirect(f'/project/{project_id}/issues')
 
@@ -341,7 +333,6 @@ def add_people_to_project(project_id):
 
             if user:
                 if ProjectMember.query.filter_by(project_id=project_id, user_id=user.id).first():
-                    print("Already a member")
                     continue
 
                 project_member = ProjectMember(project_id=project_id, user_id=user.id)
@@ -414,8 +405,8 @@ def reply_to_comment(project_id, issue_id, comment_id):
 
 def send_email(to, subject, message):
     try:
-        gmail_user = "zuranaftab14@gmail.com"  
-        gmail_password = ""  #redacted
+        gmail_user = "#####"  # redacted
+        gmail_password = "####"  # redacted
         
         msg = MIMEText(message)
         msg['Subject'] = subject
