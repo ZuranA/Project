@@ -1,4 +1,4 @@
-Issue Tracker
+# Issue Tracker
 This is an issue tracker web application built with Flask and SQLAlchemy. Users can create projects, add members to projects, create issues, assign issues to project members, and comment on issues.
 
 Features
