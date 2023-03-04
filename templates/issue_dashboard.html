@@ -2,12 +2,56 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Reply to Comment</title>
+  <title>Issue Dashboard</title>
 </head>
 <body>
-  <h1>Reply to Comment</h1>
+  <h1>Issue Dashboard</h1>
   <hr>
-  <form method="post" action="{{ url_for('reply_comment', project_id=project_id, issue_id=issue_id, comment_id=parent_comment.id) }}">
+
+  <h2>{{ issue.title }}</h2>
+  <p>{{ issue.description }}</p>
+  <p>Created By: {{ issue.created_by.email }}</p>
+  <p>Assigned To:
+    {% if issue.assigned_to %}
+            {% for assignment in issue.assigned_to %}
+              {{ assignment.user.email }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          {% else %}
+            Not assigned
+          {% endif %}
+  </p>
+
+  <a href="{{ url_for('edit_issue', project_id=project_id, issue_id=issue.id) }}">Edit Issue</a>
+
+  <br><br>
+
+  {% if comments %}
+  {% for comment in comments %}
+    <p>{{ comment.description }}</p>
+    <p>Created By: {{ comment.created_by.email }}</p>
+    <p>
+      <a href="{{ url_for('reply_to_comment', project_id=project_id, issue_id=issue_id, comment_id=comment.id) }}">Reply</a>
+    </p>
+
+    {% if comment.children %}
+      <ul>
+        {% for child in comment.children %}
+          {% if child.description %}
+            <li>{{ child.description }} - Created By: {{ child.created_by.email }}</li>
+          {% endif %}
+        {% endfor %}
+      </ul>
+    {% endif %}
+
+  {% endfor %}
+{% else %}
+  <p>No comments yet.</p>
+{% endif %}
+
+
+  <hr>
+
+  <form method="post" action="{{ url_for('create_comment', project_id=project_id, issue_id=issue_id) }}">
     {{ form.csrf_token }}
     <div class="form-group">
       {{ form.description.label }}<br>
@@ -18,5 +62,9 @@
     </div>
     <button type="submit" class="btn btn-primary">Submit</button>
   </form>
+
+  <p><a href="/logout">Log out</a></p>
+<p><a href="{{ url_for('dashboard') }}">Dashboard</a></p>
+
 </body>
 </html>
