@@ -1,5 +1,6 @@
 import datetime
-from flask import Flask, abort, request, redirect, render_template, session
+from functools import wraps
+from flask import Flask, abort, request, redirect, render_template, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Table, Column, Integer, ForeignKey
 from sqlalchemy import not_
@@ -15,6 +16,9 @@ from wtforms.widgets import ListWidget, CheckboxInput
 from werkzeug.datastructures import MultiDict
 from sqlalchemy import case, desc
 from flask_migrate import Migrate
+from flask_login import login_required
+from flask_login import LoginManager, UserMixin, login_user
+
 
 
 app = Flask(__name__)
@@ -22,9 +26,10 @@ app.secret_key = 'your_secret_key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-migrate = Migrate(app, db)
+login_manager = LoginManager()
+login_manager.init_app(app)
 
-class User(db.Model):
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
@@ -84,6 +89,18 @@ class Comment(db.Model):
     parent_comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=True)
     children = db.relationship('Comment', backref=db.backref('parent_comment', remote_side=[id]), lazy='dynamic', join_depth=1)
 
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            print('User is not logged in.')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -118,29 +135,43 @@ def login():
             return 'Email or password is incorrect.'
 
         session['user_id'] = user.id
+        print("User logged in with ID:", user.id) 
+
         return redirect("/dashboard")
+
     return render_template('login.html')
 
-@app.route("/dashboard", methods=['GET', 'POST'])   
+@app.route("/dashboard", methods=['GET', 'POST'])
+@login_required
 def dashboard():
     user_id = session.get("user_id")
-    if user_id:
-        user = User.query.get(user_id)
+    print(user_id)
+    user = User.query.get(user_id)
+    projects = []
+    for project_member in user.projects:
+        projects.append(project_member.project)
 
-        projects = []
-        for project_member in user.projects:
-            projects.append(project_member.project)
+    print("Projects:", projects)
 
-        if request.method == 'POST':
-            project_id = request.form.get('project_id')
-            project = Project.query.get(project_id)
+    todo_issues = []
+    for project in projects:
+        for issue in project.issues:
+            if issue.resolved == False and session['user_id'] in [u.user.id for u in issue.assigned_to]:
+                todo_issues.append(issue)
 
-            if project:
-                return redirect('project_issues.html', project_id = project_id)
-        return render_template('dashboard.html', projects=projects)    
-    return redirect("/login")
+    print("Todo Issues:", todo_issues)
+
+    if request.method == 'POST':
+        project_id = request.form.get('project_id')
+        project = Project.query.get(project_id)
+
+        if project:
+            return redirect('project_issues.html', project_id = project_id)
+    return render_template('dashboard.html', projects=projects, todo_issues=todo_issues)
+
 
 @app.route("/project/<int:project_id>/issues", methods=["GET", "POST"])
+@login_required
 def project_issues(project_id):
     project = Project.query.get(project_id)
 
@@ -161,6 +192,7 @@ def project_issues(project_id):
 
 
 @app.route("/project/<int:project_id>/create_issue", methods=["GET", "POST"])
+@login_required
 def new_issue(project_id):
     form = IssueForm(project_id)
     if form.validate_on_submit():
@@ -225,6 +257,7 @@ class IssueForm(FlaskForm):
             self.unassign.choices = []
 
 @app.route("/create_project", methods=['GET', 'POST'])
+@login_required
 def create_project():
     if request.method == 'POST':
         name = request.form.get('name')
@@ -247,15 +280,17 @@ class AddPeopleToProjectForm(FlaskForm):
     submit = SubmitField("Add")
 
 @app.route('/logout')
+@login_required
 def logout():
     session.pop('user_id', None)
     return redirect('/login')
 
 @app.route('/project/<int:project_id>/issue/<int:issue_id>/edit', methods=['GET', 'POST'])
+@login_required
 def edit_issue(project_id, issue_id):
     issue = Issue.query.get_or_404(issue_id)
 
-    if session['user_id'] != issue.created_by_id and session['user_id'] not in [u.user for u in issue.assigned_to]:
+    if session['user_id'] != issue.created_by_id and session['user_id'] not in [u.user.id for u in issue.assigned_to]:
         abort(403)
 
     if request.method == 'POST':
@@ -285,15 +320,15 @@ def edit_issue(project_id, issue_id):
 
             db.session.commit()
 
-            return redirect("issue_dashboard.html", project_id=project_id, issue_id=issue_id)
+            return redirect(url_for('issue_dashboard', project_id=project_id, issue_id=issue_id))
     else:
         form = IssueForm(project_id, issue=issue)
 
     return render_template('edit_issue.html', issue=issue, form=form)
 
 
-
 @app.route("/project/<int:project_id>/add_people", methods=["GET", "POST"])
+@login_required
 def add_people_to_project(project_id):
     form = AddPeopleToProjectForm()
     project = Project.query.get(project_id)
@@ -321,21 +356,21 @@ def add_people_to_project(project_id):
         return redirect(f'/project/{project_id}/issues')
     return render_template('add_people_to_project.html', form=form, project_id=project_id)
 
-@app.route("/project/<int:project_id>/issue/<int:issue_id>", methods=["GET", "POST"])
+class CommentForm(FlaskForm):
+    description = StringField('Comment', validators=[DataRequired()])
+    submit = SubmitField('Add Comment')
+
+@app.route("/project/<int:project_id>/issue/<int:issue_id>")
+@login_required
 def issue_dashboard(project_id, issue_id):
     issue = Issue.query.get_or_404(issue_id)
-    comments = Comment.query.filter_by(issue_id=issue_id, parent_comment_id=None).all()
+    comments = Comment.query.filter_by(issue_id=issue_id).all()
     form = CommentForm()
-
-    if form.validate_on_submit():
-        comment = Comment(description=form.description.data, created_by_id=session["user_id"], issue_id=issue_id)
-        db.session.add(comment)
-        db.session.commit()
-        return redirect("issue_dashboard.html", project_id=project_id, issue_id=issue_id)
-
     return render_template("issue_dashboard.html", project_id=project_id, issue_id=issue_id, issue=issue, comments=comments, form=form)
 
-@app.route("/project/<project_id>/issue/<issue_id>/comment", methods=["GET", "POST"])
+
+@app.route("/project/<project_id>/issue/<issue_id>/create_comment", methods=["GET", "POST"])
+@login_required
 def create_comment(project_id, issue_id):
     issue = Issue.query.filter_by(id=issue_id).first()
 
@@ -353,16 +388,12 @@ def create_comment(project_id, issue_id):
         )
         db.session.add(comment)
         db.session.commit()
-        return redirect(f"/project/{project_id}/issue/{issue_id}")
+        return redirect(url_for('issue_dashboard', project_id=project_id, issue_id=issue_id))
 
     return render_template("create_comment.html", form=form, project_id=project_id, issue=issue)
 
-
-class CommentForm(FlaskForm):
-    description = StringField('Comment', validators=[DataRequired()])
-    submit = SubmitField('Add Comment')
-
 @app.route("/project/<int:project_id>/issue/<int:issue_id>/comment/<int:comment_id>/reply", methods=["GET", "POST"])
+@login_required
 def reply_to_comment(project_id, issue_id, comment_id):
     comment = Comment.query.get_or_404(comment_id)
 
@@ -372,21 +403,19 @@ def reply_to_comment(project_id, issue_id, comment_id):
             reply = Comment(description=form.description.data,
                             created_by_id=session["user_id"],
                             issue_id=issue_id,
-                            parent_comment_id=comment_id)
+                            parent_comment=comment)
             db.session.add(reply)
             db.session.commit()
-            return redirect("issue_dashboard.html", project_id=project_id, issue_id=issue_id)
+            return redirect(url_for('issue_dashboard', project_id=project_id, issue_id=issue_id))
     else:
         form = CommentForm()
 
-    return render_template("reply_to_comment.html", form=form, project_id=project_id, issue_id=issue_id, comment=comment)
-
-
+    return render_template("reply_to_comment.html", project_id=project_id, issue_id=issue_id, parent_comment=comment, form=form)
 
 def send_email(to, subject, message):
     try:
-        gmail_user = "***"  # retracted
-        gmail_password = "***"  #retracted
+        gmail_user = "zuranaftab14@gmail.com"  
+        gmail_password = ""  #redacted
         
         msg = MIMEText(message)
         msg['Subject'] = subject
