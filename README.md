@@ -19,8 +19,15 @@ Issue: represents an issue created by a user for a project
 IssueAssignment: represents an assignment of an issue to a project member
 Comment: represents a comment made by a user on an issue
 
-Demo
-[Insert link to demo video here]
+An ER diagram of the models:
+![image](https://user-images.githubusercontent.com/81491503/222871126-03666d54-7b82-40ee-b715-250d7fffbdd9.png)
+
+
+Demo:
+A demo of basic operations:
+
+https://youtu.be/q__p4CVBifE
+
 
 Getting Started
 To run the application locally, follow these steps:
@@ -29,8 +36,4 @@ Clone the repository: git clone https://github.com/username/issue-tracker.git
 Install the dependencies: pip install -r requirements.txt
 Set up the database: flask db upgrade
 Start the development server: flask run
-Contributing
-Contributions are welcome! If you encounter any bugs or issues, please create an issue in the issue tracker. If you have any feature requests or would like to contribute code, please create a pull request.
 
-License
-This project is licensed under the MIT License.
