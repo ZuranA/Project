@@ -8,6 +8,7 @@ This is an issue tracker web application built with Flask and SQLAlchemy. Users 
 - Issue creation and management
 - Issue assignment to project members
 - Commenting on issues
+- Import projects and issues from GitHub using the GitHub API (in progress)
 
 The application is currently incomplete. I plan to add roles and user-performance model, whereby the appplciation tracks the number of comments, resolved issues etc. to generate graphs. Hopefully, down the line I also learn some front-end development to make the application more user friendly. 
 
