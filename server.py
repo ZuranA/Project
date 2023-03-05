@@ -18,6 +18,8 @@ from sqlalchemy import case, desc
 from flask_migrate import Migrate
 from flask_login import login_required
 from flask_login import LoginManager, UserMixin, login_user
+from flask_oauthlib.client import OAuth
+import requests
 
 
 
@@ -29,16 +31,31 @@ db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+oauth = OAuth(app)
+
+github = oauth.remote_app(
+    'github',
+    consumer_key='d8700b9c77591807f99f',
+    consumer_secret='a37f3fab06b0dd023f8802f7d79760ec6d1d39f6',
+    request_token_params={'scope': 'user:email'},
+    base_url='https://api.github.com/',
+    request_token_url=None,
+    access_token_url='https://github.com/login/oauth/access_token',
+    authorize_url='https://github.com/login/oauth/authorize'
+)
+
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
+    github_access_token = db.Column(db.String(250), unique=True)
 
     created_projects = db.relationship("Project", back_populates="admin")
     projects = db.relationship("ProjectMember", back_populates="user")
     issues = db.relationship('Issue', back_populates='created_by', foreign_keys='Issue.created_by_id')
     assigned_issues = db.relationship("IssueAssignment", back_populates="user")
     comments = db.relationship('Comment', back_populates = 'created_by', foreign_keys = 'Comment.created_by_id')
+
 
 class Project(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -89,6 +106,7 @@ class Comment(db.Model):
     parent_comment_id = db.Column(db.Integer, db.ForeignKey('comment.id'), nullable=True)
     children = db.relationship('Comment', backref=db.backref('parent_comment', remote_side=[id]), lazy='dynamic', join_depth=1)
 
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -101,6 +119,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@app.route('/', methods=['GET', 'POST'])
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
@@ -405,8 +424,8 @@ def reply_to_comment(project_id, issue_id, comment_id):
 
 def send_email(to, subject, message):
     try:
-        gmail_user = "#####"  # redacted
-        gmail_password = "####"  # redacted
+        gmail_user = "zuranaftab14@gmail.com"  
+        gmail_password = "mtivmkbbocjvwfwa"  
         
         msg = MIMEText(message)
         msg['Subject'] = subject
@@ -421,6 +440,74 @@ def send_email(to, subject, message):
         print(f"Email sent to {to}")
     except Exception as e:
         print(f"Failed to send email to {to}. Error: {e}")
+
+
+###### In Progress, Incomplete: 
+
+@app.route('/github_login')
+def github_login():
+    # Redirect to GitHub for authentication
+    return github.authorize_redirect(redirect_uri=url_for('github_authenticate', _external=True))
+
+@app.route('/github_authenticate')
+def github_authenticate():
+    # Verify and handle the response from GitHub
+    token = github.authorize_access_token()
+    user = User.query.get(session.get('user_id'))
+    
+    # Store the GitHub ID in the database for the current user
+    
+    user.github_access_token = token
+    db.session.commit()
+
+    return redirect('/dashboard')
+
+@app.route('/import_github_repo', methods=['GET', 'POST'])
+@login_required
+def import_github_repo():
+    if request.method == 'POST':
+        # Get the repo link from the form data
+        current_user = User.query.get(session.get('user_id'))
+        repo_link = request.form['repo_link']
+
+        # Make a request to the GitHub API to get information about the repo
+        headers = {'Authorization': f'token {current_user.github_access_token}'}
+        response = requests.get(f'{repo_link}/contents', headers=headers)
+
+        # If the response is not successful, return an error message
+        if response.status_code != 200:
+            return redirect(url_for('dashboard'))
+
+        # Extract the repo name and description from the response
+        repo_name = response.json()[0]['name']
+        repo_description = response.json()[0]['description']
+
+        # Create a new project with the repo name and description
+        project = Project(name=repo_name, description=repo_description, admin=current_user)
+        db.session.add(project)
+        db.session.commit()
+
+        # Make another request to the GitHub API to get any issues associated with the repo
+        response = requests.get(f'{repo_link}/issues', headers=headers)
+
+        # If the response is successful, create new issues for each issue in the repo
+        if response.status_code == 200:
+            issues = response.json()
+            for issue in issues:
+                title = issue['title']
+                description = issue['body']
+                urgency = 'Medium'  # defualt
+                resolved = issue['state'] == 'closed'
+                created_by = current_user
+                project_id = project.id
+                new_issue = Issue(title=title, description=description, resolved = resolved, urgency=urgency, created_by=created_by, project_id=project_id)
+                db.session.add(new_issue)
+                db.session.commit()
+
+       
+        return redirect(url_for('dashboard'))
+
+    return render_template('import_github_repo.html')
 
 if __name__ == '__main__':
     with app.app_context():
